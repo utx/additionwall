@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Addition Wall Game - 5 Levels</title>
+    <title>Addition Wall Game - Enhanced</title>
     <style>
+        /* Keep existing styles */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -75,24 +76,56 @@
         .level-button.unlocked {
             opacity: 1;
         }
+
+        /* Updated celebration screen styles */
         .celebration-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96c93d);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
             display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
+        
+        .celebration-content {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
         .celebration-text {
             font-size: 48px;
             font-weight: bold;
             text-align: center;
+            margin-bottom: 30px;
             animation: rainbow 2s linear infinite, bounce 1s ease-in-out infinite;
         }
+
+        .celebration-button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            background-color: #3498db;
+            color: white;
+        }
+
+        .celebration-button:hover {
+            transform: scale(1.05);
+            background-color: #2980b9;
+        }
+
         @keyframes rainbow {
             0% { color: #ff0000; }
             20% { color: #ffff00; }
@@ -101,20 +134,36 @@
             80% { color: #ff00ff; }
             100% { color: #ff0000; }
         }
+
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
         }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .confetti {
             position: absolute;
             width: 10px;
             height: 10px;
             animation: fall linear forwards;
         }
+
         @keyframes fall {
             to {
                 transform: translateY(100vh);
             }
+        }
+
+        .master-text {
+            font-size: 36px;
+            color: #2c3e50;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -134,13 +183,21 @@
     </div>
 
     <div id="celebrationScreen" class="celebration-screen">
-        <div class="celebration-text">
-            🎉 Congratulations! 🎉<br>
-            You Beat the Game!
+        <div class="celebration-content">
+            <div class="celebration-text">
+                🎉 Congratulations! 🎉<br>
+                You Beat the Game!
+            </div>
+            <button class="celebration-button" onclick="restartGame()">Play Again</button>
+            <button class="celebration-button" onclick="loadMasterLevel()">Try Master Level</button>
+            <div id="masterText" class="master-text" style="display: none;">
+                Wow! You're Really Good at This! 🏆
+            </div>
         </div>
     </div>
 
     <script>
+        // Keep existing levels array
         const levels = [
             {
                 name: "Level 1 - Beginner",
@@ -191,9 +248,23 @@
             }
         ];
 
+        // Add master level
+        const masterLevel = {
+            name: "Master Level",
+            wall: [
+                [{ value: null, fixed: false }],
+                [{ value: null, fixed: false }, { value: null, fixed: false }],
+                [{ value: null, fixed: false }, { value: null, fixed: false }, { value: null, fixed: false }],
+                [{ value: null, fixed: false }, { value: null, fixed: false }, { value: null, fixed: false }, { value: null, fixed: false }],
+                [{ value: null, fixed: false }, { value: null, fixed: false }, { value: null, fixed: false }, { value: null, fixed: false }, { value: null, fixed: false }],
+                [{ value: 75, fixed: true }, { value: 82, fixed: true }, { value: 68, fixed: true }, { value: 93, fixed: true }, { value: 77, fixed: true }, { value: 84, fixed: true }]
+            ]
+        };
+
         let currentLevel = 0;
         let completedLevels = new Set();
         let currentWall = JSON.parse(JSON.stringify(levels[currentLevel].wall));
+        let isMasterLevel = false;
 
         function createConfetti() {
             const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
@@ -204,23 +275,6 @@
             confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
             document.body.appendChild(confetti);
             setTimeout(() => confetti.remove(), 5000);
-        }
-
-        function showGameComplete() {
-            const celebrationScreen = document.getElementById('celebrationScreen');
-            celebrationScreen.style.display = 'flex';
-            
-            // Create confetti continuously
-            const confettiInterval = setInterval(() => {
-                for (let i = 0; i < 5; i++) {
-                    createConfetti();
-                }
-            }, 200);
-
-            // Stop confetti after 5 seconds
-            setTimeout(() => {
-                clearInterval(confettiInterval);
-            }, 5000);
         }
 
         function renderLevelButtons() {
@@ -236,7 +290,7 @@
                 buttonsDiv.appendChild(button);
             });
 
-            document.getElementById('levelInfo').textContent = levels[currentLevel].name;
+            document.getElementById('levelInfo').textContent = isMasterLevel ? masterLevel.name : levels[currentLevel].name;
         }
 
         function renderWall() {
@@ -282,17 +336,20 @@
             }
 
             if (isWallComplete() && isWallCorrect()) {
-                completedLevels.add(currentLevel);
-                successElement.textContent = 'Congratulations! Level completed!';
-                successElement.style.display = 'block';
-                renderLevelButtons();
-
-                if (currentLevel === levels.length - 1) {
-                    // Show game complete celebration
-                    setTimeout(showGameComplete, 1000);
+                if (isMasterLevel) {
+                    document.getElementById('masterText').style.display = 'block';
+                    showGameComplete();
                 } else {
-                    // Automatically advance to next level after 1.5 seconds
-                    setTimeout(() => loadLevel(currentLevel + 1), 1500);
+                    completedLevels.add(currentLevel);
+                    successElement.textContent = 'Congratulations! Level completed!';
+                    successElement.style.display = 'block';
+                    renderLevelButtons();
+
+                    if (currentLevel === levels.length - 1) {
+                        setTimeout(showGameComplete, 1000);
+                    } else {
+                        setTimeout(() => loadLevel(currentLevel + 1), 1500);
+                    }
                 }
             }
         }
@@ -315,8 +372,43 @@
             return true;
         }
 
+        function showGameComplete() {
+            const celebrationScreen = document.getElementById('celebrationScreen');
+            celebrationScreen.style.display = 'flex';
+            
+            // Create confetti continuously
+            const confettiInterval = setInterval(() => {
+                for (let i = 0; i < 5; i++) {
+                    createConfetti();
+                }
+            }, 200);
+
+            // Stop confetti after 5 seconds
+            setTimeout(() => {
+                clearInterval(confettiInterval);
+            }, 5000);
+        }
+
+        function restartGame() {
+            completedLevels.clear();
+            currentLevel = 0;
+            isMasterLevel = false;
+            document.getElementById('celebrationScreen').style.display = 'none';
+            document.getElementById('masterText').style.display = 'none';
+            loadLevel(0);
+        }
+
+        function loadMasterLevel() {
+            isMasterLevel = true;
+            currentWall = JSON.parse(JSON.stringify(masterLevel.wall));
+            document.getElementById('celebrationScreen').style.display = 'none';
+            document.getElementById('levelInfo').textContent = masterLevel.name;
+            document.getElementById('masterText').style.display = 'block';
+            renderWall();
+        }
+
         function resetLevel() {
-            currentWall = JSON.parse(JSON.stringify(levels[currentLevel].wall));
+            currentWall = JSON.parse(JSON.stringify(isMasterLevel ? masterLevel.wall : levels[currentLevel].wall));
             document.getElementById('error').textContent = '';
             document.getElementById('success').style.display = 'none';
             document.getElementById('celebrationScreen').style.display = 'none';
@@ -324,9 +416,12 @@
         }
 
         function loadLevel(levelIndex) {
-            currentLevel = levelIndex;
-            resetLevel();
-            renderLevelButtons();
+            if (levelIndex >= 0 && levelIndex < levels.length) {
+                currentLevel = levelIndex;
+                isMasterLevel = false;
+                resetLevel();
+                renderLevelButtons();
+            }
         }
 
         // Initial render
